@@ -95,9 +95,9 @@ public class MemScan extends Activity {
     	File file = getFileStreamPath(REPORT_FILENAME);
 		if (file.exists()) {
 			Date d = new Date(file.lastModified());
-			mTextView.append(String.format("Results from %s :\n\n", d.toString()));
+			StringBuilder stringBuilder = new StringBuilder();
+			stringBuilder.append(String.format("Results from %s :\n\n", d.toString()));
 			try {
-				StringBuilder stringBuilder = new StringBuilder();
 				char[] buf = new char[8 * 1024];
 				InputStreamReader input = new InputStreamReader(openFileInput(REPORT_FILENAME));
 				try {
@@ -109,7 +109,7 @@ public class MemScan extends Activity {
 					input.close();
 				}
 
-				mTextView.append(stringBuilder.toString());
+				mTextView.setText(stringBuilder.toString());
 			} catch (FileNotFoundException e) {
 				throw new RuntimeException(e);
 			} catch (IOException e) {
