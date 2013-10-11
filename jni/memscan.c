@@ -1,6 +1,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <sys/mman.h>
 #include <jni.h>
 #include <android/log.h>
 
@@ -36,25 +38,20 @@ Java_com_example_memscan_MemScan_stopMemScan( JNIEnv* env, jobject thiz )
 jstring
 Java_com_example_memscan_MemScan_memScan( JNIEnv* env, jobject thiz, jint bytes )
 {
+	enum {
+		outputBufSize = 10 * 1024	// Only return 10K of error text
+	};
 	char buf[100];	// Temporary string buffer
-
 	gStopNow = 0;
 	jstring result = NULL;
 
-	int outputBufSize = 10 * 1024;	// Only return 10K of error text
-	char* outputBuf = malloc(outputBufSize);
-	if (outputBuf == NULL)
-	{
-		throwOutOfMemoryError(env, "Out of memory allocating outputBuf");
-		return NULL;
-	}
+	char outputBuf[outputBufSize];	// allocate on stack
 	outputBuf[0] = '\0';
 
-	int* pMem = malloc(bytes);
-	if (pMem == NULL)
+	int* pMem = mmap(0, bytes, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+	if (pMem == MAP_FAILED)
 	{
-		free(outputBuf);
-		snprintf(buf, sizeof(buf), "Out of memory allocating large block of %d bytes", bytes);
+		snprintf(buf, sizeof(buf), "mmap was unable to allocate %d bytes, errno: %d", bytes, errno);
 		throwOutOfMemoryError(env, buf);
 		return NULL;
 	}
@@ -115,7 +112,9 @@ Java_com_example_memscan_MemScan_memScan( JNIEnv* env, jobject thiz, jint bytes 
 	}
 
 	result = (*env)->NewStringUTF(env, outputBuf);
-	free(pMem);
-	free(outputBuf);
+	int mresult = munmap(pMem, bytes);
+	if (mresult != 0) {
+		LOGE( "munmap returned: %d, errno: %d", mresult, errno);
+	}
 	return result;
 }
